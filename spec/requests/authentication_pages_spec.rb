@@ -13,7 +13,9 @@ describe "Authentication" do
 
 
   describe "signin" do
+
   	before { visit signin_path }
+
 
   	describe "with invalid information" do
   	  before { click_button "Sign in" }
@@ -43,6 +45,10 @@ describe "Authentication" do
       describe "followed by signout" do
         before { click_link "Sign out" }
         it { should have_link('Sign in') }
+
+        it { should_not have_selector('a',   text: 'Profile') }
+        it { should_not have_selector('a',   text: 'Settings') }
+
       end
     end
   end
@@ -66,8 +72,21 @@ describe "Authentication" do
             page.should have_selector('title', text: 'Edit user')
           end
         end
-      end
 
+        describe "when signing in again" do
+          before do
+            delete signout_path
+            visit signin_path
+            fill_in "Email",  with: user.email
+            fill_in "Password", with: user.password
+            click_button "Sign in"
+          end
+
+          it "should render the default (profile) page" do
+            page.should have_selector('title',  text: user.name)
+          end
+        end
+      end
 
       describe "in the Users controller" do
 
@@ -86,7 +105,22 @@ describe "Authentication" do
           it  { should have_selector('title', text: 'Sign in') }
         end
       end
+
+      describe "in the Microposts controller" do
+
+        describe "submitting to the create action" do
+          before  { post microposts_path }
+          specify { response.should redirect_to(signin_path) }
+        end
+
+        describe "submitting to the destroy action" do
+          before  { delete micropost_path(FactoryGirl.create(:micropost)) }
+          specify { response.should redirect_to(signin_path) }
+        end
+      end
     end
+
+
 
     describe "as wrong user" do
       let(:user)  { FactoryGirl.create(:user) }
@@ -117,7 +151,21 @@ describe "Authentication" do
       end
     end
 
+    describe "as an admin user" do
+      let(:admin)  { FactoryGirl.create(:admin) }
+
+      before do
+        sign_in admin
+        visit users_path
+      end
+
+      describe "submit a DELETE request upon self!" do
+        before { delete user_path(admin) }
+        specify { response.should redirect_to(root_path) }
+      end
+    end
 
   end
+
 end
 
